@@ -14,4 +14,5 @@ public class TicketResponseDTO {
     private Long eventId;
     private Long userId;
     private String userName;
+    private String qrCode;
 }

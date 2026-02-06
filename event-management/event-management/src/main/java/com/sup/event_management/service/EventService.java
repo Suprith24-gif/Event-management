@@ -2,16 +2,16 @@ package com.sup.event_management.service;
 
 import com.sup.event_management.entity.Event;
 import com.sup.event_management.entity.User;
+import com.sup.event_management.exceptions.AppException;
+import com.sup.event_management.exceptions.ExceptionSeverity;
+import com.sup.event_management.exceptions.ExceptionType;
 import com.sup.event_management.repository.EventRepository;
 import com.sup.event_management.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class EventService {
@@ -25,18 +25,18 @@ public class EventService {
     }
 
     public ResponseEntity<?> createEvent(Event event) {
-        // Check if organizer exists
-        Optional<User> organizerOpt = userRepository.findById(event.getOrganizer().getId());
-        if (organizerOpt.isEmpty()) {
-            Map<String, String> error = new HashMap<>();
-            error.put("Status", "Organizer not found with ID: " + event.getOrganizer().getId());
-            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
-        }
 
-        // Set the organizer to the existing user entity (to avoid detached entity error)
-        event.setOrganizer(organizerOpt.get());
+        User organizer = userRepository.findById(event.getOrganizer().getId())
+                .orElseThrow(() -> new AppException(
+                        "Organizer not found",
+                        ExceptionType.RESOURCE_NOT_FOUND,
+                        ExceptionSeverity.WARNING,
+                        HttpStatus.NOT_FOUND,
+                        "Organizer ID : " + event.getOrganizer().getId()
+                ));
 
-        // availableSeats will be set automatically by @PrePersist, but in case of update, handle carefully
+        event.setOrganizer(organizer);
+
         if (event.getAvailableSeats() == null) {
             event.setAvailableSeats(event.getTotalSeats());
         }
@@ -46,31 +46,34 @@ public class EventService {
     }
 
     public ResponseEntity<?> getEventById(Long id) {
-        Optional<Event> eventOpt = eventRepository.findById(id);
-        if (eventOpt.isEmpty()) {
-            Map<String, String> error = new HashMap<>();
-            error.put("Status", "Event not found with ID: " + id);
-            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
-        }
-        return new ResponseEntity<>(eventOpt.get(), HttpStatus.OK);
+
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new AppException(
+                        "Event not found",
+                        ExceptionType.RESOURCE_NOT_FOUND,
+                        ExceptionSeverity.INFO,
+                        HttpStatus.NOT_FOUND,
+                        "Event ID : " + id
+                ));
+
+        return ResponseEntity.ok(event);
     }
 
     public ResponseEntity<List<Event>> getAllEvents() {
-        List<Event> events = eventRepository.findAll();
-        return new ResponseEntity<>(events, HttpStatus.OK);
+        return ResponseEntity.ok(eventRepository.findAll());
     }
 
     public ResponseEntity<?> updateEvent(Long id, Event updatedEvent) {
-        Optional<Event> eventOpt = eventRepository.findById(id);
-        if (eventOpt.isEmpty()) {
-            Map<String, String> error = new HashMap<>();
-            error.put("Status", "Event not found with ID: " + id);
-            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
-        }
 
-        Event existingEvent = eventOpt.get();
+        Event existingEvent = eventRepository.findById(id)
+                .orElseThrow(() -> new AppException(
+                        "Event not found",
+                        ExceptionType.RESOURCE_NOT_FOUND,
+                        ExceptionSeverity.WARNING,
+                        HttpStatus.NOT_FOUND,
+                        "Event ID : " + id
+                ));
 
-        // Update fields (except id, createdAt)
         existingEvent.setTitle(updatedEvent.getTitle());
         existingEvent.setDescription(updatedEvent.getDescription());
         existingEvent.setLocation(updatedEvent.getLocation());
@@ -80,27 +83,33 @@ public class EventService {
         existingEvent.setTicketPrice(updatedEvent.getTicketPrice());
 
         if (updatedEvent.getOrganizer() != null) {
-            Optional<User> organizerOpt = userRepository.findById(updatedEvent.getOrganizer().getId());
-            if (organizerOpt.isEmpty()) {
-                Map<String, String> error = new HashMap<>();
-                error.put("Status", "Organizer not found with ID: " + updatedEvent.getOrganizer().getId());
-                return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
-            }
-            existingEvent.setOrganizer(organizerOpt.get());
+            User organizer = userRepository.findById(updatedEvent.getOrganizer().getId())
+                    .orElseThrow(() -> new AppException(
+                            "Organizer not found",
+                            ExceptionType.RESOURCE_NOT_FOUND,
+                            ExceptionSeverity.WARNING,
+                            HttpStatus.NOT_FOUND,
+                            "Organizer ID : " + updatedEvent.getOrganizer().getId()
+                    ));
+            existingEvent.setOrganizer(organizer);
         }
 
         Event savedEvent = eventRepository.save(existingEvent);
-        return new ResponseEntity<>(savedEvent, HttpStatus.OK);
+        return ResponseEntity.ok(savedEvent);
     }
 
     public ResponseEntity<?> deleteEvent(Long id) {
-        Optional<Event> eventOpt = eventRepository.findById(id);
-        if (eventOpt.isEmpty()) {
-            Map<String, String> error = new HashMap<>();
-            error.put("Status", "Event not found with ID: " + id);
-            return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
-        }
-        eventRepository.deleteById(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+
+        Event event = eventRepository.findById(id)
+                .orElseThrow(() -> new AppException(
+                        "Event not found",
+                        ExceptionType.RESOURCE_NOT_FOUND,
+                        ExceptionSeverity.CRITICAL,
+                        HttpStatus.NOT_FOUND,
+                        "Event ID : " + id
+                ));
+
+        eventRepository.delete(event);
+        return ResponseEntity.noContent().build();
     }
 }
