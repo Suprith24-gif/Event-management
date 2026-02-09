@@ -1,6 +1,7 @@
 package com.sup.event_management.controller;
 
 import com.sup.event_management.dto.request.UserCreateDTO;
+import com.sup.event_management.dto.response.PagedResponse;
 import com.sup.event_management.dto.response.UserResponseDTO;
 import com.sup.event_management.entity.User;
 import com.sup.event_management.service.UserService;
@@ -30,7 +31,15 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
-        return userService.getAllUsers();
+    public ResponseEntity<PagedResponse<UserResponseDTO>> getAllUsers(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String role) {
+        return userService.getAllUsers(page, size, name, role);
     }
+
+
+
+
 }
