@@ -1,5 +1,6 @@
 package com.sup.event_management.controller;
 
+import com.sup.event_management.dto.response.PagedResponse;
 import com.sup.event_management.entity.Event;
 import com.sup.event_management.service.EventService;
 import org.springframework.http.ResponseEntity;
@@ -28,9 +29,12 @@ public class EventController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Event>> getAllEvents() {
-        return eventService.getAllEvents();
+    public ResponseEntity<PagedResponse<Event>> getAllEvents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return eventService.getAllEvents(page, size);
     }
+
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateEvent(@PathVariable Long id, @RequestBody Event event) {

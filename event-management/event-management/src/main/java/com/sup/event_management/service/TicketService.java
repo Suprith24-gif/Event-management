@@ -1,6 +1,5 @@
 package com.sup.event_management.service;
 
-
 import com.sup.event_management.dto.request.TicketBookRequestDTO;
 import com.sup.event_management.dto.response.TicketResponseDTO;
 import com.sup.event_management.entity.Event;
@@ -15,17 +14,20 @@ import com.sup.event_management.repository.TicketRepository;
 import com.sup.event_management.repository.UserRepository;
 import com.sup.event_management.util.QRCodeGenerator;
 import jakarta.transaction.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
 public class TicketService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TicketService.class);
 
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
@@ -41,8 +43,10 @@ public class TicketService {
 
     @Transactional
     public ResponseEntity<?> bookTickets(TicketBookRequestDTO dto) {
+        logger.info("Booking {} tickets for user ID: {} for event ID: {}", dto.getSeatCount(), dto.getUserId(), dto.getEventId());
 
         if (dto.getSeatCount() <= 0) {
+            logger.warn("Invalid seat count: {}", dto.getSeatCount());
             throw new AppException(
                     "Seat count must be greater than zero",
                     ExceptionType.VALIDATION,
@@ -53,24 +57,31 @@ public class TicketService {
         }
 
         User user = userRepository.findById(dto.getUserId())
-                .orElseThrow(() -> new AppException(
-                        "User not found",
-                        ExceptionType.RESOURCE_NOT_FOUND,
-                        ExceptionSeverity.WARNING,
-                        HttpStatus.NOT_FOUND,
-                        "User ID : " + dto.getUserId()
-                ));
+                .orElseThrow(() -> {
+                    logger.warn("User not found with ID: {}", dto.getUserId());
+                    return new AppException(
+                            "User not found",
+                            ExceptionType.RESOURCE_NOT_FOUND,
+                            ExceptionSeverity.WARNING,
+                            HttpStatus.NOT_FOUND,
+                            "User ID : " + dto.getUserId()
+                    );
+                });
 
         Event event = eventRepository.findById(dto.getEventId())
-                .orElseThrow(() -> new AppException(
-                        "Event not found",
-                        ExceptionType.RESOURCE_NOT_FOUND,
-                        ExceptionSeverity.WARNING,
-                        HttpStatus.NOT_FOUND,
-                        "Event ID : " + dto.getEventId()
-                ));
+                .orElseThrow(() -> {
+                    logger.warn("Event not found with ID: {}", dto.getEventId());
+                    return new AppException(
+                            "Event not found",
+                            ExceptionType.RESOURCE_NOT_FOUND,
+                            ExceptionSeverity.WARNING,
+                            HttpStatus.NOT_FOUND,
+                            "Event ID : " + dto.getEventId()
+                    );
+                });
 
         if (event.getAvailableSeats() < dto.getSeatCount()) {
+            logger.info("Not enough seats available. Requested: {}, Available: {}", dto.getSeatCount(), event.getAvailableSeats());
             throw new AppException(
                     "Not enough seats available",
                     ExceptionType.BUSINESS,
@@ -81,7 +92,6 @@ public class TicketService {
         }
 
         event.setAvailableSeats(event.getAvailableSeats() - dto.getSeatCount());
-
         List<Ticket> tickets = new ArrayList<>();
 
         for (int i = 0; i < dto.getSeatCount(); i++) {
@@ -92,8 +102,8 @@ public class TicketService {
         }
 
         ticketRepository.saveAll(tickets);
+        logger.info("Successfully booked {} tickets for user ID: {} for event ID: {}", tickets.size(), user.getId(), event.getId());
 
-        // Convert to DTO with QR
         List<TicketResponseDTO> response = tickets.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -103,11 +113,16 @@ public class TicketService {
 
     @Transactional
     public ResponseEntity<?> cancelTicket(Long ticketId) {
+        logger.info("Cancelling ticket with ID: {}", ticketId);
 
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+                .orElseThrow(() -> {
+                    logger.warn("Ticket not found with ID: {}", ticketId);
+                    return new RuntimeException("Ticket not found");
+                });
 
         if (ticket.getStatus() == TicketStatus.CANCELLED) {
+            logger.info("Ticket with ID: {} is already cancelled", ticketId);
             return ResponseEntity.badRequest()
                     .body("Ticket already cancelled");
         }
@@ -116,7 +131,8 @@ public class TicketService {
         Event event = ticket.getEvent();
         event.setAvailableSeats(event.getAvailableSeats() + 1);
 
-        return ResponseEntity.ok("Ticket cancelled successfully with ticket ID : "+ticketId);
+        logger.info("Ticket with ID: {} cancelled successfully. Available seats for event ID {} updated to {}", ticketId, event.getId(), event.getAvailableSeats());
+        return ResponseEntity.ok("Ticket cancelled successfully with ticket ID : " + ticketId);
     }
 
     private TicketResponseDTO toDTO(Ticket ticket) {
@@ -130,7 +146,6 @@ public class TicketService {
         dto.setUserName(ticket.getUser().getName());
 
         try {
-            // Build JSON manually (no Jackson needed)
             String ticketJson = "{"
                     + "\"ticketId\":" + ticket.getId() + ","
                     + "\"ticketCode\":\"" + ticket.getTicketCode() + "\","
@@ -139,7 +154,9 @@ public class TicketService {
                     + "}";
 
             dto.setQrCode(QRCodeGenerator.generateQRCodeBase64(ticketJson, 250, 250));
+            logger.debug("Generated QR code for ticket ID: {}", ticket.getId());
         } catch (Exception e) {
+            logger.error("Failed to generate QR code for ticket ID: {}", ticket.getId(), e);
             throw new RuntimeException("Failed to generate QR for ticket ID: " + ticket.getId(), e);
         }
 
