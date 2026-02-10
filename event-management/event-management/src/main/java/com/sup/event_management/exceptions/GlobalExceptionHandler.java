@@ -25,26 +25,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, ex.getStatus());
     }
 
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) throws Exception {
-//
-//        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
-//        if (path.startsWith("/v3/api-docs") ||
-//                path.startsWith("/swagger-ui") ||
-//                path.startsWith("/swagger-ui.html") ||
-//                path.startsWith("/swagger-resources") ||
-//                path.startsWith("/webjars")) {
-//            throw ex;
-//        }
-//
-//        ErrorResponse response = new ErrorResponse(
-//                MESSAGE,
-//                ExceptionType.SYSTEM,
-//                ExceptionSeverity.FATAL,
-//                500,
-//                ex.getMessage()
-//        );
-//
-//        return ResponseEntity.internalServerError().body(response);
-//    }
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, WebRequest request) throws Exception {
+
+        String path = ((ServletWebRequest) request).getRequest().getRequestURI();
+        if (path.startsWith("/v3/api-docs") ||
+                path.startsWith("/swagger-ui") ||
+                path.startsWith("/swagger-ui.html") ||
+                path.startsWith("/swagger-resources") ||
+                path.startsWith("/webjars")) {
+            throw ex;
+        }
+
+        ErrorResponse response = new ErrorResponse(
+                MESSAGE,
+                ExceptionType.SYSTEM,
+                ExceptionSeverity.FATAL,
+                500,
+                ex.getMessage()
+        );
+
+        return ResponseEntity.internalServerError().body(response);
+    }
 }
