@@ -3,8 +3,10 @@ package com.sup.event_management.controller;
 import com.sup.event_management.dto.response.PagedResponse;
 import com.sup.event_management.entity.Event;
 import com.sup.event_management.service.EventService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -18,10 +20,16 @@ public class EventController {
         this.eventService = eventService;
     }
 
-    @PostMapping
-    public ResponseEntity<?> createEvent(@RequestBody Event event) {
-        return eventService.createEvent(event);
+    @PostMapping(value = "/with-media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> createEventWithMedia(
+            @RequestPart("event") Event event,
+            @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
+            @RequestPart(value = "images", required = false) MultipartFile[] images,
+            @RequestPart(value = "video", required = false) MultipartFile video
+    ) {
+        return eventService.createEventWithMedia(event, profileImage, images, video);
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<?> getEvent(@PathVariable Long id) {
